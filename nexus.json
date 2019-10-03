@@ -41,6 +41,7 @@
         "(cd /opt; sudo tar xvzf /tmp/nexus.tar.gz)",
         "sudo mv /opt/nexus* /opt/nexus",
         "sudo find /opt/nexus -exec chown ec2-user:ec2-user {} \\;",
+        "sudo find /opt/sonatype-work -exec chown ec2-user:ec2-user {} \\;",
         "sudo mv /tmp/nexus.service /etc/systemd/system/",
         "sudo systemctl daemon-reload",
         "sudo systemctl enable nexus.service",
