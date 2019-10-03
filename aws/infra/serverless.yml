@@ -1,0 +1,103 @@
+service: sonatype-nexus-infra
+
+provider: aws
+
+resources:
+  Resources:
+    FileSystem:
+      Type: AWS::EFS::FileSystem
+      Properties:
+        Encrypted: true
+        FileSystemTags:
+          - Key: Name
+            Value: Nexus
+    Vpc:
+      Type: AWS::EC2::VPC
+      Properties:
+        CidrBlock: '192.168.0.0/24'
+        EnableDnsHostnames: true
+        EnableDnsSupport: true
+        Tags:
+          - Key: Name
+            Value: Nexus
+    Subnet1:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone:
+          Fn::Select:
+            - 0
+            - Fn::GetAZs: ''
+        CidrBlock: '192.168.0.0/26'
+        Tags:
+          - Key: Name
+            Value: Nexus
+        VpcId: !Ref Vpc
+    Subnet2:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone:
+          Fn::Select:
+            - 1
+            - Fn::GetAZs: ''
+        CidrBlock: '192.168.0.64/26'
+        Tags:
+          - Key: Name
+            Value: Nexus
+        VpcId: !Ref Vpc
+    Subnet3:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone:
+          Fn::Select:
+            - 2
+            - Fn::GetAZs: ''
+        CidrBlock: '192.168.0.128/26'
+        Tags:
+          - Key: Name
+            Value: Nexus
+        VpcId: !Ref Vpc
+    SecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: sonatype nexus
+        GroupName: sonatype-nexus
+        Tags:
+          - Key: Name
+            Value: Nexus
+        VpcId: !Ref Vpc
+    MountTarget1:
+      Type: AWS::EFS::MountTarget
+      Properties:
+        FileSystemId: !Ref FileSystem
+        SecurityGroups:
+          - !Ref SecurityGroup
+        SubnetId: !Ref Subnet1
+    MountTarget2:
+      Type: AWS::EFS::MountTarget
+      Properties:
+        FileSystemId: !Ref FileSystem
+        SecurityGroups:
+          - !Ref SecurityGroup
+        SubnetId: !Ref Subnet2
+    MountTarget3:
+      Type: AWS::EFS::MountTarget
+      Properties:
+        FileSystemId: !Ref FileSystem
+        SecurityGroups:
+          - !Ref SecurityGroup
+        SubnetId: !Ref Subnet3
+  Outputs:
+    FileSystem:
+      Value: !Ref FileSystem
+    VpcId:
+      Value: !Ref Vpc
+    Subnet1Id:
+      Value: !Ref Subnet1
+    Subnet2Id:
+      Value: !Ref Subnet2
+    Subnet3Id:
+      Value: !Ref Subnet3
+    SecurityGroup:
+      Value: !Ref SecurityGroup
+      Export:
+        Name: sonatype-nexus-securitygroup

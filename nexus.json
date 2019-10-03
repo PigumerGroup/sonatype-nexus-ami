@@ -35,7 +35,8 @@
       "type": "shell",
       "inline": [
         "sudo amazon-linux-extras enable corretto8",
-        "sudo yum install java-1.8.0-amazon-corretto -y",
+        "sudo yum install -y java-1.8.0-amazon-corretto",
+        "sudo yum install -y amazon-efs-utils",
         "java -version",
         "sudo mkdir -p /opt",
         "(cd /opt; sudo tar xvzf /tmp/nexus.tar.gz)",
