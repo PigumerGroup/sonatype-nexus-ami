@@ -1,0 +1,50 @@
+{
+  "variables": {
+    "bucket_name": "",
+    "bucket_key": ""
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "region": "ap-northeast-1",
+    "source_ami_filter": {
+      "filters": {
+        "virtualization-type": "hvm",
+        "name": "amzn2-ami-hvm-2.0.*-x86_64-ebs",
+        "root-device-type": "ebs"
+      },
+      "owners": ["amazon"],
+      "most_recent": true
+    },
+    "instance_type": "t2.micro",
+    "ssh_username": "ec2-user",
+    "ami_name": "sonatype-nexus-{{timestamp}}"
+  }],
+  "provisioners": [
+    {
+      "type": "shell-local",
+      "inline": [
+        "aws s3api get-object --bucket {{user `bucket_name`}} --key {{user `bucket_key`}} downloads/nexus.tar.gz"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "downloads/",
+      "destination": "/tmp/"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo amazon-linux-extras enable corretto8",
+        "sudo yum install java-1.8.0-amazon-corretto -y",
+        "java -version",
+        "sudo mkdir -p /opt",
+        "(cd /opt; sudo tar xvzf /tmp/nexus.tar.gz)",
+        "sudo mv /opt/nexus* /opt/nexus",
+        "sudo mv /tmp/nexus.service /etc/systemd/system/",
+        "sudo systemctl daemon-reload",
+        "sudo systemctl enable nexus.service",
+        "sudo rm -f /tmp/nexus.tar.gz"
+      ]
+    }
+  ]
+}
