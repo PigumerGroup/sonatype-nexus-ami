@@ -1,4 +1,4 @@
-.env
+.env*
 /downloads/nexus.tar.gz
 .idea/
 .serverless/

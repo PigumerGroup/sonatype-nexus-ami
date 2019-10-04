@@ -1,7 +1,12 @@
 {
   "variables": {
     "bucket_name": "",
-    "bucket_key": ""
+    "bucket_key": "",
+    "vpc": "",
+    "subnet": "",
+    "filesystem": "",
+    "securitygroup": "",
+    "instanceprofile": ""
   },
   "builders": [{
     "type": "amazon-ebs",
@@ -15,9 +20,15 @@
       "owners": ["amazon"],
       "most_recent": true
     },
+    "vpc_id": "{{user `vpc`}}",
+    "subnet_id": "{{user `subnet`}}",
+    "security_group_id": "{{user `securitygroup`}}",
     "instance_type": "t2.micro",
     "ssh_username": "ec2-user",
-    "ami_name": "sonatype-nexus-{{timestamp}}"
+    "ami_name": "sonatype-nexus-{{timestamp}}",
+    "associate_public_ip_address": true,
+    "iam_instance_profile": "{{user `instanceprofile`}}",
+    "ssh_timeout": "5m"
   }],
   "provisioners": [
     {
@@ -37,8 +48,9 @@
         "sudo amazon-linux-extras enable corretto8",
         "sudo yum install -y java-1.8.0-amazon-corretto",
         "sudo yum install -y amazon-efs-utils",
-        "java -version",
-        "sudo mkdir -p /opt",
+        "echo '{{user `filesystem`}}:/ /opt/sonatype-work efs defaults,_netdev 0 0' | sudo tee -a /etc/fstab",
+        "sudo mkdir -p /opt/sonatype-work",
+        "sudo mount -a",
         "(cd /opt; sudo tar xvzf /tmp/nexus.tar.gz)",
         "sudo mv /opt/nexus* /opt/nexus",
         "sudo find /opt/nexus -exec chown ec2-user:ec2-user {} \\;",
@@ -46,7 +58,8 @@
         "sudo mv /tmp/nexus.service /etc/systemd/system/",
         "sudo systemctl daemon-reload",
         "sudo systemctl enable nexus.service",
-        "sudo rm -f /tmp/nexus.tar.gz"
+        "sudo rm -f /tmp/nexus.tar.gz",
+        "java -version"
       ]
     }
   ]
