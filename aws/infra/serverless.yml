@@ -4,13 +4,6 @@ provider: aws
 
 resources:
   Resources:
-    FileSystem:
-      Type: AWS::EFS::FileSystem
-      Properties:
-        Encrypted: true
-        FileSystemTags:
-          - Key: Name
-            Value: Nexus
     Vpc:
       Type: AWS::EC2::VPC
       Properties:
@@ -20,17 +13,6 @@ resources:
         Tags:
           - Key: Name
             Value: Nexus
-    SecurityGroupIngress:
-      Type: AWS::EC2::SecurityGroupIngress
-      Properties:
-        CidrIp: 0.0.0.0/0
-        FromPort: 22
-        GroupId:
-          Fn::GetAtt:
-            - Vpc
-            - DefaultSecurityGroup
-        IpProtocol: tcp
-        ToPort: 22
     InternetGateway:
       Type: AWS::EC2::InternetGateway
       Properties:
@@ -89,24 +71,6 @@ resources:
       Properties:
         RouteTableId: !Ref RouteTable
         SubnetId: !Ref Subnet2
-    MountTarget1:
-      Type: AWS::EFS::MountTarget
-      Properties:
-        FileSystemId: !Ref FileSystem
-        SecurityGroups:
-          - Fn::GetAtt:
-            - Vpc
-            - DefaultSecurityGroup
-        SubnetId: !Ref Subnet1
-    MountTarget2:
-      Type: AWS::EFS::MountTarget
-      Properties:
-        FileSystemId: !Ref FileSystem
-        SecurityGroups:
-          - Fn::GetAtt:
-            - Vpc
-            - DefaultSecurityGroup
-        SubnetId: !Ref Subnet2
     EC2Role:
       Type: AWS::IAM::Role
       Properties:
@@ -142,9 +106,104 @@ resources:
         Path: /
         Roles:
           - !Ref EC2Role
+    SSHSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Sonatype Nexus
+        GroupName: sonatype-nexus-securitygroup-for-ssh
+        SecurityGroupIngress:
+          - CidrIp: 0.0.0.0/0
+            FromPort: 22
+            IpProtocol: tcp
+            ToPort: 22
+        Tags:
+          - Key: Name
+            Value: Nexus
+        VpcId: !Ref Vpc
+    LaunchConfiguration:
+      Type: AWS::AutoScaling::LaunchConfiguration
+      Properties:
+        AssociatePublicIpAddress: true
+        IamInstanceProfile: !Ref InstanceProfile
+        ImageId: ${opt:imageId}
+        InstanceType: t2.small
+        SecurityGroups:
+          - Fn::GetAtt:
+            - Vpc
+            - DefaultSecurityGroup
+          - !Ref SSHSecurityGroup
+    TargetGroup:
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      Properties:
+        HealthCheckEnabled: true
+        HealthCheckIntervalSeconds: 30
+        HealthCheckPath: /
+        HealthCheckPort: 8081
+        HealthCheckProtocol: HTTP
+        HealthCheckTimeoutSeconds: 5
+        HealthyThresholdCount: 5
+        Matcher:
+          HttpCode: 200
+        Name: sonatype-nexus
+        Port: 8081
+        Protocol: HTTP
+        Tags:
+          - Key: Name
+            Value: Nexus
+        TargetType: instance
+        UnhealthyThresholdCount: 2
+        VpcId: !Ref Vpc
+    AutoScalingGroup:
+      Type: AWS::AutoScaling::AutoScalingGroup
+      Properties:
+        AutoScalingGroupName: sonatype-nexus
+        DesiredCapacity: 0
+        HealthCheckType: EC2
+        LaunchConfigurationName: !Ref LaunchConfiguration
+        MaxSize: 1
+        MinSize: 0
+        Tags:
+          - Key: Name
+            PropagateAtLaunch: true
+            Value: Nexus
+        TargetGroupARNs:
+          - !Ref TargetGroup
+        VPCZoneIdentifier:
+          - !Ref Subnet1
+          - !Ref Subnet2
+    LBSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Sonatype Nexus
+        GroupName: sonatype-nexus-securitygroup-for-lb
+        SecurityGroupIngress:
+          - CidrIp: 0.0.0.0/0
+            FromPort: 443
+            IpProtocol: tcp
+            ToPort: 443
+        Tags:
+          - Key: Name
+            Value: Nexus
+        VpcId: !Ref Vpc
+    LoadBalancer:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Properties:
+        IpAddressType: ipv4
+        Name: sonatype-nexus-loadbalancer
+        Scheme: internet-facing
+        SecurityGroups:
+          - Fn::GetAtt:
+              - Vpc
+              - DefaultSecurityGroup
+          - !Ref LBSecurityGroup
+        Subnets:
+          - !Ref Subnet1
+          - !Ref Subnet2
+        Tags:
+          - Key: Name
+            Value: Nexus
+        Type: application
   Outputs:
-    FileSystem:
-      Value: !Ref FileSystem
     VpcId:
       Value: !Ref Vpc
       Export:
@@ -162,8 +221,6 @@ resources:
         Fn::GetAtt:
           - InstanceProfile
           - Arn
-      Export:
-        Name: sonatype-nexus-instanceprofile
     SecurityGroup:
       Value:
         Fn::GetAtt:
@@ -171,3 +228,18 @@ resources:
           - DefaultSecurityGroup
       Export:
         Name: sonatype-nexus-securitygroup
+    TargetGroup:
+      Value: !Ref TargetGroup
+      Export:
+        Name: sonatype-nexus-targetgroup
+    LoadBalancer:
+      Value: !Ref LoadBalancer
+      Export:
+        Name: sonatype-nexus-loadbalancer
+    LoadBalancerHostedZoneID:
+      Value:
+        Fn::GetAtt:
+          - LoadBalancer
+          - CanonicalHostedZoneID
+      Export:
+        Name: sonatype-nexus-loadbalancer-hostedzoneid
