@@ -15,3 +15,11 @@ $ AWS_PROFILE=<YOUR PROFILE> packer build \
   -var 'instanceprofile=<Instance Profile Name>' \
   nexus-efs.json
 ```
+
+生成されたAMIをベースに稼働するイメージでは、以下のコマンドを実行するように設定します
+
+```
+$ sudo mount -t efs <FileSystem ID>:/ /opt/sonatype-work 
+$ sudo systemctl enable nexus.service
+$ sudo systemctl start nexus.service
+```

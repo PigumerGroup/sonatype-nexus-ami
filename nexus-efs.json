@@ -46,19 +46,16 @@
       "type": "shell",
       "inline": [
         "sudo amazon-linux-extras enable corretto8",
-        "sudo yum install -y java-1.8.0-amazon-corretto",
-        "sudo yum install -y amazon-efs-utils",
-        "echo '{{user `filesystem`}}:/ /opt/sonatype-work efs defaults,_netdev 0 0' | sudo tee -a /etc/fstab",
+        "sudo yum install -y java-1.8.0-amazon-corretto amazon-efs-utils",
         "sudo mkdir -p /opt/sonatype-work",
-        "sudo mount -a",
+        "sudo mount -t efs {{user `filesystem`}}:/ /opt/sonatype-work",
         "(cd /opt; sudo tar xvzf /tmp/nexus.tar.gz)",
+        "sudo rm -f /tmp/nexus.tar.gz",
         "sudo mv /opt/nexus* /opt/nexus",
         "sudo find /opt/nexus -exec chown ec2-user:ec2-user {} \\;",
         "sudo find /opt/sonatype-work -exec chown ec2-user:ec2-user {} \\;",
         "sudo mv /tmp/nexus.service /etc/systemd/system/",
         "sudo systemctl daemon-reload",
-        "sudo systemctl enable nexus.service",
-        "sudo rm -f /tmp/nexus.tar.gz",
         "java -version"
       ]
     }
